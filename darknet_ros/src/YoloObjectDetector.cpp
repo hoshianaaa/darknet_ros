@@ -155,6 +155,8 @@ void YoloObjectDetector::init()
   nodeHandle_.param("publishers/detection_image/queue_size", detectionImageQueueSize, 1);
   nodeHandle_.param("publishers/detection_image/latch", detectionImageLatch, true);
 
+  nodeHandle_.param("switch", switch_, 0);
+
   imageSubscriber_ = imageTransport_.subscribe(cameraTopicName, cameraQueueSize,
                                                &YoloObjectDetector::cameraCallback, this);
   objectPublisher_ = nodeHandle_.advertise<darknet_ros_msgs::ObjectCount>(objectDetectorTopicName,
@@ -166,6 +168,7 @@ void YoloObjectDetector::init()
                                                                        detectionImageQueueSize,
                                                                        detectionImageLatch);
 
+  switchSubscriber_ = nodeHandle_.subscribe("switch", 1, &YoloObjectDetector::switchCallback, this);
   // Action servers.
   std::string checkForObjectsActionName;
   nodeHandle_.param("actions/camera_reading/topic", checkForObjectsActionName,
@@ -208,6 +211,23 @@ void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
   return;
 }
 
+void YoloObjectDetector::switchCallback(const std_msgs::StringConstPtr& msg)
+{
+  std::string msg_string = msg->data.c_str();
+  ROS_INFO("I heard: [%s]", msg_string);
+  if(msg_string == "on")
+  {
+    ROS_INFO("switch on");
+    switch_ = 1;
+  }
+  else
+  { 
+    ROS_INFO("switch off");
+    switch_ = 0;
+  }
+  return;
+}
+	
 void YoloObjectDetector::checkForObjectsActionGoalCB()
 {
   ROS_DEBUG("[YoloObjectDetector] Start check for objects action.");
@@ -326,6 +346,12 @@ detection *YoloObjectDetector::avgPredictions(network *net, int *nboxes)
 
 void *YoloObjectDetector::detectInThread()
 {
+	/*
+  if (switch_==0){
+    printf("switch off"); 
+    return 0;
+  }
+  */
   running_ = 1;
   float nms = .4;
 
@@ -533,6 +559,7 @@ void YoloObjectDetector::yolo()
   demoTime_ = what_time_is_it_now();
 
   while (!demoDone_) {
+  if(switch_){
     buffIndex_ = (buffIndex_ + 1) % 3;
     fetch_thread = std::thread(&YoloObjectDetector::fetchInThread, this);
     detect_thread = std::thread(&YoloObjectDetector::detectInThread, this);
@@ -550,6 +577,7 @@ void YoloObjectDetector::yolo()
       sprintf(name, "%s_%08d", demoPrefix_, count);
       save_image(buff_[(buffIndex_ + 1) % 3], name);
     }
+
     fetch_thread.join();
     detect_thread.join();
     ++count;
@@ -557,7 +585,11 @@ void YoloObjectDetector::yolo()
       demoDone_ = true;
     }
   }
-
+  else
+  {
+    printf(" switch off !\n");
+  }
+  }
 }
 
 IplImageWithHeader_ YoloObjectDetector::getIplImageWithHeader()

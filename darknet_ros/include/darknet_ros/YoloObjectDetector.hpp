@@ -20,6 +20,7 @@
 // ROS
 #include <ros/ros.h>
 #include <std_msgs/Header.h>
+#include <std_msgs/String.h>
 #include <actionlib/server/simple_action_server.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
@@ -107,6 +108,8 @@ class YoloObjectDetector
    */
   void cameraCallback(const sensor_msgs::ImageConstPtr& msg);
 
+  void switchCallback(const std_msgs::StringConstPtr& msg);
+
   /*!
    * Check for objects action goal callback.
    */
@@ -150,6 +153,7 @@ class YoloObjectDetector
   image_transport::Subscriber imageSubscriber_;
   ros::Publisher objectPublisher_;
   ros::Publisher boundingBoxesPublisher_;
+  ros::Subscriber switchSubscriber_;
 
   //! Detected objects.
   std::vector<std::vector<RosBox_> > rosBoxes_;
@@ -213,6 +217,8 @@ class YoloObjectDetector
 
   int actionId_;
   boost::shared_mutex mutexActionStatus_;
+
+  int switch_;
 
   // double getWallTime();
 
